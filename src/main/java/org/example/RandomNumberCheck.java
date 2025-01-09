@@ -1,6 +1,12 @@
 package org.example;
 
+import java.io.FileOutputStream;
 import java.util.*;
+
+import org.apache.poi.xssf.usermodel.XSSFCell;
+import org.apache.poi.xssf.usermodel.XSSFRow;
+import org.apache.poi.xssf.usermodel.XSSFSheet;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
 public class RandomNumberCheck {
     static Scanner scanner = new Scanner (System.in);
@@ -42,8 +48,15 @@ public class RandomNumberCheck {
     private static ArrayList<Integer> generateRandomNumberArray() {
         System.out.print("How many random numbers do you want?");
         int arrayListSize = validateNumber();
-        System.out.print("What range should the numbers have? Give the upper limit.");
-        int arrayListRange = validateNumber();
+        int arrayListRange;
+        while (true) {
+            System.out.print("What range should the numbers have? Give the upper limit.");
+            arrayListRange = validateNumber();
+            if (arrayListRange > 0) {
+                break;
+            }
+            System.out.print("The range cannot be less then 1\n");
+        }
         System.out.print("Do you want the list sorted? \nType true or false:");
         boolean isSorted = scanner.nextBoolean();
         return generateRandomArrayList(arrayListSize, arrayListRange, isSorted);
@@ -89,6 +102,7 @@ public class RandomNumberCheck {
                 scanner.nextLine();
                 System.out.print("\nThe input is not correct. Please try again");
             }
+            scanner.nextLine();
         }
 
         return choose;
@@ -177,7 +191,7 @@ public class RandomNumberCheck {
     private static void WriteToFile (ArrayList<Integer> arrayList) {
         while (isRunning) {
             System.out.print("""
-                    \n
+                    
                     --Write to File--
                     Now that you have a list of numbers, what do you want to do with those numbers?\s
                     1. Print the numbers\s
@@ -192,8 +206,19 @@ public class RandomNumberCheck {
                     System.out.print("Cool. See you next time!\n\n");
                     isRunning = false;
                 }
-                case 2 -> printArray(arrayList);
-                case 1 -> writeToExcel(arrayList);
+                case 1 -> printArray(arrayList);
+                case 2 -> {
+                    System.out.print("What should the file be named?");
+                    String userFileName;
+                    while (true) {
+                        userFileName = scanner.nextLine();
+                        if (userFileName != null) {
+                            break;
+                        }
+                        System.out.print("The filename cannot be empty. Please try again\n");
+                    }
+                    writeToExcel(arrayList, ("Output Files/" + userFileName + ".xlsx"));
+                }
                 case 3 -> writeToFile(arrayList);
                 default -> {
                 }
@@ -222,10 +247,40 @@ public class RandomNumberCheck {
         //create a method that formats the info based on the Excel spreadsheet
         //send a message to the user if the file is successfully created
     }
-    private static void writeToExcel(ArrayList<Integer> arrayList) {
-        //XSSFWorkbook workbook = new XSSFWorkbook();
-        //name the Excel file
-        //create a method that formats the info based on the Excel spreadsheet
-        //send a message to the user if the file is successfully created
+    private static void writeToExcel(ArrayList<Integer> arrayList, String filename) {
+
+        //creating XSSF workbook object
+        XSSFWorkbook workbook = new XSSFWorkbook();
+        //creating spreadsheet object
+        XSSFSheet sheet = workbook.createSheet();
+
+        //creating row, cell, cellID and rowID for spreadsheet
+        int rowID = 0;
+        XSSFRow row;
+
+        int cellID = 0;
+        XSSFCell cell;
+
+        row = sheet.createRow(0);
+        cell = row.createCell(cellID);
+        cell.setCellValue("Random Numbers");
+
+        for (int integer: arrayList) {
+            row = sheet.createRow(++rowID);
+            cell = row.createCell(cellID);
+            cell.setCellValue(integer);
+        }
+
+        try {
+            FileOutputStream output = new FileOutputStream(filename);
+            workbook.write(output);
+            output.close();
+
+            //sends message to user
+            System.out.printf("%s has been written successfully.", filename);
+        } catch (Exception e) {
+            System.out.print("The file is not found.");
+            e.printStackTrace();
+        }
     }
 }
