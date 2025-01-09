@@ -1,12 +1,19 @@
 package org.example;
 
-import java.io.FileOutputStream;
+import java.io.*;
 import java.util.*;
 
 import org.apache.poi.xssf.usermodel.XSSFCell;
 import org.apache.poi.xssf.usermodel.XSSFRow;
 import org.apache.poi.xssf.usermodel.XSSFSheet;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
+
+/*
+what to do
+
+4. Separate code into different files
+5. (Long term goal) Create HTML/Web version of the program
+ */
 
 public class RandomNumberCheck {
     static Scanner scanner = new Scanner (System.in);
@@ -58,7 +65,7 @@ public class RandomNumberCheck {
             System.out.print("The range cannot be less then 1\n");
         }
         System.out.print("Do you want the list sorted? \nType true or false:");
-        boolean isSorted = scanner.nextBoolean();
+        boolean isSorted = validateBoolean();
         return generateRandomArrayList(arrayListSize, arrayListRange, isSorted);
     }
 
@@ -73,7 +80,7 @@ public class RandomNumberCheck {
             System.out.print("Please give a larger number");
         }
         System.out.print("Do you want unique random integers (an oxymoron, I know)? \nType true or false:");
-        boolean isUnique = scanner.nextBoolean();
+        boolean isUnique = validateBoolean();
         return randomNumberIterator(isUnique, tempRange);
     }
 
@@ -90,22 +97,34 @@ public class RandomNumberCheck {
         }
         return tempArray;
     }
+    private static boolean validateBoolean() {
+        boolean tempBool;
+        while (true) {
+            try {
+                tempBool = scanner.nextBoolean();
+                scanner.nextLine();
+                return tempBool;
+            }
+            catch (java.util.InputMismatchException e) {
+                scanner.nextLine();
+                System.out.print("\nThe input is not correct. Please try again");
+            }
+        }
+    }
 
     private static int validateNumber () {
-        boolean numberValid = false; //boolean determines the validity of the number
-        int choose = 0; //determines which choice the program goes down
-        while (!numberValid) {
+        int choose;
+        while (true) {
             try {
                 choose = scanner.nextInt();
-                numberValid = true;
+                scanner.nextLine();
+                return choose;
             } catch (java.util.InputMismatchException e) {
                 scanner.nextLine();
                 System.out.print("\nThe input is not correct. Please try again");
             }
-            scanner.nextLine();
-        }
 
-        return choose;
+        }
     }
     private static int randomNumberGenerator(boolean isUnique, int bound) {
         if (isUnique) {
@@ -113,6 +132,7 @@ public class RandomNumberCheck {
         }
         return Math.abs(random.nextInt(bound + 1) );
     }
+
     private static ArrayList<Integer> randomNumberIterator (boolean isUnique, int maxNumber) {
         if (isUnique) {
             return uniqueRandomNumberIterator(maxNumber);
@@ -188,7 +208,12 @@ public class RandomNumberCheck {
 
         return randInt;
     }
+
+    static ArrayList<String> filenamesFromMemory = new ArrayList<>();
+    static String file = "Output Files/fileLedger.txt";
+
     private static void WriteToFile (ArrayList<Integer> arrayList) {
+        readFilenamesFromMemory();
         while (isRunning) {
             System.out.print("""
                     
@@ -208,22 +233,73 @@ public class RandomNumberCheck {
                 }
                 case 1 -> printArray(arrayList);
                 case 2 -> {
-                    System.out.print("What should the file be named?");
-                    String userFileName;
-                    while (true) {
-                        userFileName = scanner.nextLine();
-                        if (userFileName != null) {
-                            break;
-                        }
-                        System.out.print("The filename cannot be empty. Please try again\n");
-                    }
-                    writeToExcel(arrayList, ("Output Files/" + userFileName + ".xlsx"));
+                    String filename = createFileName(".xlsx");
+                    writeToExcel(arrayList, filename);
                 }
-                case 3 -> writeToFile(arrayList);
+                case 3 -> {
+                    String filename = createFileName(".txt");
+                    writeToFile(arrayList, filename);
+                }
                 default -> {
                 }
             }
         }
+        scanner.close();
+    }
+    private static String createFileName (String fileExtension) {
+        String filename;
+        while (true) {
+            filename = formatFileName(fileExtension);
+            if (isFileUnique(filename)) {
+                addFilenameToMemory(filename);
+                return filename;
+            } else {
+                System.out.print("Another file shares this file name. Please write a new file name\n");
+            }
+        }
+    }
+
+    private static boolean isFileUnique (String filename) {
+        Collections.sort(filenamesFromMemory);
+        int isFileUnique = Collections.binarySearch(filenamesFromMemory, filename);
+        return isFileUnique < 0;
+    }
+
+    private static void readFilenamesFromMemory () {
+        String oldFileNames;
+        try (BufferedReader bfReader = new BufferedReader(new FileReader(file))) {
+            while ( (oldFileNames = bfReader.readLine()) != null ) {
+                filenamesFromMemory.add(oldFileNames);
+                }
+        } catch (IOException e) {
+            System.out.print("Error: read from line failed " + e.getMessage());
+        }
+        filenamesFromMemory.add("List of Files:");
+    }
+
+    private static void addFilenameToMemory (String filename) {
+        try {
+            FileWriter fileWriter = new FileWriter(file, true);
+            filename += "\n";//adds a new line to the filename
+            fileWriter.write(filename);
+            fileWriter.close();
+        } catch (IOException | NullPointerException e) {
+            System.err.print("Error: Write to file failed - " + e.getMessage());
+        }
+        filenamesFromMemory.add(filename);
+    }
+
+    private static String formatFileName(String fileExtension) {
+        System.out.print("What should the file be named?");
+        String userFileName;
+        while (true) {
+            userFileName = scanner.nextLine();
+            if (userFileName != null) {
+                break;
+            }
+            System.out.print("The filename cannot be empty. Please try again\n");
+        }
+        return ("Output Files/" + userFileName + fileExtension);
 
     }
 
@@ -242,13 +318,17 @@ public class RandomNumberCheck {
             System.out.print(arrayString);
         }
     }
-    private static void writeToFile(ArrayList<Integer> arrayList) {
-        //name the Excel file
-        //create a method that formats the info based on the Excel spreadsheet
-        //send a message to the user if the file is successfully created
+    private static void writeToFile(ArrayList<Integer> arrayList, String filename) {
+        try {
+            FileWriter newFile = new FileWriter(filename); //opens file
+            newFile.write(arrayList.toString()); //writes array to file
+            newFile.close(); //closes file
+            System.out.print("File has been written too");
+        } catch (IOException e) {
+            System.out.print("Error: write to file failed - " + e.getMessage());
+        }
     }
     private static void writeToExcel(ArrayList<Integer> arrayList, String filename) {
-
         //creating XSSF workbook object
         XSSFWorkbook workbook = new XSSFWorkbook();
         //creating spreadsheet object
